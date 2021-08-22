@@ -1,0 +1,84 @@
+name: Linux, gcc, EDK2
+
+on:  
+  push:
+    tags:
+      - '*'
+
+env:
+  COMPILER: GCC5
+  GCC5_ARM_PREFIX: arm-linux-gnueabi-
+  GCC5_AARCH64_PREFIX: aarch64-linux-gnu-
+  GCC5_RISCV64_PREFIX: riscv64-linux-gnu-
+  FULL_SHELL_GUID: EA4BB293-2D7F-4456-A681-1F22F42CD0BC
+  BUILD_TYPES: DEBUG RELEASE
+  ARCHS: X64 IA32 AARCH64 ARM RISCV64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set version
+      id: set_version
+      run: echo "::set-output name=version::${GITHUB_REF/refs\/tags\//}"
+    - name: Install toolchains
+      run: |
+        sudo apt install python3-distutils nasm uuid-dev gcc-9-multilib gcc-9-aarch64-linux-gnu gcc-9-arm-linux-gnueabi gcc-9-riscv64-linux-gnu genisoimage
+        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-9 /usr/bin/aarch64-linux-gnu-gcc
+        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-9 /usr/bin/aarch64-linux-gnu-gcc-ar
+        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-9 /usr/bin/arm-linux-gnueabi-gcc
+        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-ar-9 /usr/bin/arm-linux-gnueabi-gcc-ar
+        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-9 /usr/bin/riscv64-linux-gnu-gcc
+        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-9 /usr/bin/riscv64-linux-gnu-gcc-ar
+        sudo ln -s /usr/riscv64-linux-gnu/include/gnu/stubs-lp64d.h /usr/riscv64-linux-gnu/include/gnu/stubs-lp64.h
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Set up EDK2
+      run: make -C edk2/BaseTools
+    - name: Build UEFI binaries
+      run: |
+        cd edk2
+        source edksetup.sh
+        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
+          for ARCH in ${{ env.ARCHS }} ; do
+            build -a $ARCH -b $BUILD_TYPE -t ${{ env.COMPILER }} -p ShellPkg/ShellPkg.dsc
+          done
+        done
+    - name: Create ISO filesystem structure
+      run: |
+        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
+          mkdir -p $BUILD_TYPE/efi/boot
+          for ARCH in ${{ env.ARCHS }}; do
+            mv edk2/Build/Shell/${BUILD_TYPE}_${{ env.COMPILER }}/$ARCH/Shell_${{ env.FULL_SHELL_GUID }}.efi $BUILD_TYPE/efi/boot/boot${ARCH,,}.efi
+          done
+          if [ -f $BUILD_TYPE/efi/boot/bootaarch64.efi ]; then
+            mv $BUILD_TYPE/efi/boot/bootaarch64.efi $BUILD_TYPE/efi/boot/bootaa64.efi
+          fi
+        done
+    - name: Display SHA-256
+      run: |
+        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
+          sha256sum $BUILD_TYPE/efi/boot/*.efi
+        done
+    - name: Generate ISO images
+      run: |
+        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
+          EXTRA="" && [[ $BUILD_TYPE == DEBUG ]] && EXTRA=" (DEBUG)"
+          genisoimage -v -V "UEFI SHELL ${{ steps.set_version.outputs.version }} ($BUILD_TYPE)" -JR -o "UEFI-Shell_${{ steps.set_version.outputs.version }}$EXTRA.iso" $BUILD_TYPE
+        done
+        sha256sum *.iso
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: ISOs
+        path: ./*.iso
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        body: UEFI Shell ${{ steps.set_version.outputs.version }}
+        files: ./*.iso
