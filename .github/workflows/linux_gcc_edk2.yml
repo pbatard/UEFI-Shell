@@ -104,9 +104,9 @@ jobs:
     - name: Create release blurb
       run: |
         printf "**UEFI Shell v%s, release %s**\n\n" ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} > body.txt
-        printf "Built from [%s](https://github.com/tianocore/edk2/releases/tag/%s) for supported platforms:\n" ${{ steps.set_version.outputs.edk2_tag }} ${{ steps.set_version.outputs.edk2_tag }} >> body.txt
+        printf "Built from [%s](https://github.com/tianocore/edk2/releases/tag/%s) and supporting:\n" ${{ steps.set_version.outputs.edk2_tag }} ${{ steps.set_version.outputs.edk2_tag }} >> body.txt
         for ARCH in ${{ env.ARCHS }}; do
-          printf "* %s\n" $ARCH >> body.txt
+          printf "* `%s`\n" $ARCH >> body.txt
         done
     - name: Create release
       uses: softprops/action-gh-release@v1
