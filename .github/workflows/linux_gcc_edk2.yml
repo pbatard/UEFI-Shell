@@ -1,6 +1,6 @@
 name: Linux, gcc, EDK2
 
-on:  
+on:
   push:
     tags:
       - '*'
@@ -12,16 +12,19 @@ env:
   GCC5_RISCV64_PREFIX: riscv64-linux-gnu-
   FULL_SHELL_GUID: EA4BB293-2D7F-4456-A681-1F22F42CD0BC
   BUILD_TYPES: DEBUG RELEASE
-  ARCHS: X64 IA32 AARCH64 ARM RISCV64
+  ARCHS: X64 IA32 AARCH64 ARM
+  EDK2_SHELL_VERSION_HEADER: edk2/MdePkg/Include/Protocol/Shell.h
+  # Was edk2/MdePkg/Include/Protocol/EfiShell.h prior to 2016.10.18
+  # Was edk2/ShellPkg/Include/Protocol/EfiShell.h prior to 2016.10.18 
+  # 2.2 version added 2017.03.31
+  # 2.1 version added 2014.08.05
+  # 2.0 version added 2009.05.11
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set version
-      id: set_version
-      run: echo "::set-output name=version::${GITHUB_REF/refs\/tags\//}"
     - name: Install toolchains
       run: |
         sudo apt install python3-distutils nasm uuid-dev gcc-9-multilib gcc-9-aarch64-linux-gnu gcc-9-arm-linux-gnueabi gcc-9-riscv64-linux-gnu genisoimage
@@ -35,7 +38,16 @@ jobs:
     - name: Checkout repository and submodules
       uses: actions/checkout@v2
       with:
+        fetch-depth: 0
         submodules: recursive
+    - name: Set version
+      id: set_version
+      run: |
+        SHELL_MAJOR_VERSION=$(awk '/SHELL_MAJOR_VERSION/{sub("\r", "", $NF); sub(",", "", $NF); print $NF}' ${{ env.EDK2_SHELL_VERSION_HEADER }})
+        SHELL_MINOR_VERSION=$(awk '/SHELL_MINOR_VERSION/{sub("\r", "", $NF); print $NF}' ${{ env.EDK2_SHELL_VERSION_HEADER }})
+        echo "::set-output name=shell_version::${SHELL_MAJOR_VERSION}.${SHELL_MINOR_VERSION}"
+        echo "::set-output name=shell_release::${GITHUB_REF/refs\/tags\//}"
+        echo "::set-output name=edk2_tag::$(git --git-dir edk2/.git describe --tags)"
     - name: Set up EDK2
       run: make -C edk2/BaseTools
     - name: Build UEFI binaries
@@ -44,7 +56,7 @@ jobs:
         source edksetup.sh
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
           for ARCH in ${{ env.ARCHS }} ; do
-            build -a $ARCH -b $BUILD_TYPE -t ${{ env.COMPILER }} -p ShellPkg/ShellPkg.dsc
+            build -a $ARCH -b $BUILD_TYPE -t ${{ env.COMPILER }} -p ShellPkg/ShellPkg.dsc --pcd gEfiShellPkgTokenSpaceGuid.PcdShellScreenLogCount=8 --pcd gEfiShellPkgTokenSpaceGuid.PcdShellSupplier=L"${{ steps.set_version.outputs.edk2_tag }} (https://github.com/pbatard/UEFI-Shell)"
           done
         done
     - name: Create ISO filesystem structure
@@ -57,6 +69,21 @@ jobs:
           if [ -f $BUILD_TYPE/efi/boot/bootaarch64.efi ]; then
             mv $BUILD_TYPE/efi/boot/bootaarch64.efi $BUILD_TYPE/efi/boot/bootaa64.efi
           fi
+          printf "*** UEFI Shell v%s, release %s%s ***\n\n" ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} "$( [ $BUILD_TYPE == DEBUG ] && echo ' (DEBUG BUILD)')" > $BUILD_TYPE/README.txt
+          printf "This bootable image contains builds of the official UEFI Shell, as provided by\n" >> $BUILD_TYPE/README.txt
+          printf "the Open Source 'EDK2' project (https://github.com/tianocore/edk2).\n\n" >> $BUILD_TYPE/README.txt
+          printf "More specifically, this release, which we call '%s', was produced using the\n" ${{ steps.set_version.outputs.shell_release }} >> $BUILD_TYPE/README.txt
+          printf "'%s' version of the EDK2 source available at:\n" ${{ steps.set_version.outputs.edk2_tag }} >> $BUILD_TYPE/README.txt
+          printf "https://github.com/tianocore/edk2/releases/tag/%s\n\n" ${{ steps.set_version.outputs.edk2_tag }} >> $BUILD_TYPE/README.txt
+          printf "This image supports the following UEFI platform architectures:\n" >> $BUILD_TYPE/README.txt
+          for ARCH in ${{ env.ARCHS }}; do
+            printf "* %s\n" $ARCH >> $BUILD_TYPE/README.txt
+          done
+          printf "\nFor more information on how this release was produced, you are invited to\n" >> $BUILD_TYPE/README.txt
+          printf "visit our official project page at https://github.com/pbatard/UEFI-Shell,\n" >> $BUILD_TYPE/README.txt
+          printf "where you can also validate that all of the binaries contained in this image\n" >> $BUILD_TYPE/README.txt
+          printf "were built from the unmodified EDK2 source, through an automated build process\n" >> $BUILD_TYPE/README.txt
+          printf "that guarantees that no malicious code can have been injected.\n" >> $BUILD_TYPE/README.txt
         done
     - name: Display SHA-256
       run: |
@@ -66,8 +93,7 @@ jobs:
     - name: Generate ISO images
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
-          EXTRA="" && [[ $BUILD_TYPE == DEBUG ]] && EXTRA=" (DEBUG)"
-          genisoimage -v -V "UEFI SHELL ${{ steps.set_version.outputs.version }} ($BUILD_TYPE)" -JR -o "UEFI-Shell_${{ steps.set_version.outputs.version }}$EXTRA.iso" $BUILD_TYPE
+          genisoimage -v -V "UEFI SHELL ${{ steps.set_version.outputs.shell_release }} ($BUILD_TYPE)" -JR -o "UEFI-Shell_${{ steps.set_version.outputs.shell_release }}_$BUILD_TYPE.iso" $BUILD_TYPE
         done
         sha256sum *.iso
     - name: Upload artifacts
@@ -75,10 +101,17 @@ jobs:
       with:
         name: ISOs
         path: ./*.iso
+    - name: Create release blurb
+      run: |
+        printf "**UEFI Shell v%s, release %s**\n\n" ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} > body.txt
+        printf "Built from [%s](https://github.com/tianocore/edk2/releases/tag/%s) for supported platforms:\n" ${{ steps.set_version.outputs.edk2_tag }} ${{ steps.set_version.outputs.edk2_tag }} >> body.txt
+        for ARCH in ${{ env.ARCHS }}; do
+          printf "* %s\n" $ARCH >> body.txt
+        done
     - name: Create release
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       with:
-        body: UEFI Shell ${{ steps.set_version.outputs.version }}
+        body_path: ./body.txt
         files: ./*.iso
