@@ -13,12 +13,13 @@ env:
   FULL_SHELL_GUID: EA4BB293-2D7F-4456-A681-1F22F42CD0BC
   BUILD_TYPES: DEBUG RELEASE
   ARCHS: X64 IA32 AARCH64 ARM
+  # Shell versions:
+  #  2.2 added on 2017.03.31
+  #  2.1 added on 2014.08.05
+  #  2.0 added on 2009.05.11
   EDK2_SHELL_VERSION_HEADER: edk2/MdePkg/Include/Protocol/Shell.h
-  # Was edk2/MdePkg/Include/Protocol/EfiShell.h prior to 2016.10.18
   # Was edk2/ShellPkg/Include/Protocol/EfiShell.h prior to 2016.10.18 
-  # 2.2 version added 2017.03.31
-  # 2.1 version added 2014.08.05
-  # 2.0 version added 2009.05.11
+  # enum ShellVersion added on 2009.05.11
 
 jobs:
   build:
@@ -48,6 +49,7 @@ jobs:
         echo "::set-output name=shell_version::${SHELL_MAJOR_VERSION}.${SHELL_MINOR_VERSION}"
         echo "::set-output name=shell_release::${GITHUB_REF/refs\/tags\//}"
         echo "::set-output name=edk2_tag::$(git --git-dir edk2/.git describe --tags)"
+        echo "::set-output name=build_date::$(date '+%Y.%m.%d')"
     - name: Set up EDK2
       run: make -C edk2/BaseTools
     - name: Build UEFI binaries
@@ -84,16 +86,27 @@ jobs:
           printf "where you can also validate that all of the binaries contained in this image\n" >> $BUILD_TYPE/README.txt
           printf "were built from the unmodified EDK2 source, through an automated build process\n" >> $BUILD_TYPE/README.txt
           printf "that guarantees that no malicious code can have been injected.\n" >> $BUILD_TYPE/README.txt
+          printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" > Version.xml
+          printf "<release>\n" >> Version.xml
+          printf "  <name>%s (%s)</name>\n" ${{ steps.set_version.outputs.shell_release }} ${{ steps.set_version.outputs.edk2_tag }} >> Version.xml
+          printf "  <shell_version>%s</shell_version>\n" ${{ steps.set_version.outputs.shell_version }} >> Version.xml
+          printf "  <build_date>%s</build_date>\n" ${{ steps.set_version.outputs.build_date }} >> Version.xml
+          printf "  <supported_archs>\n" >> Version.xml
+          for ARCH in ${{ env.ARCHS }}; do
+            printf "    <arch>%s</arch>\n" $ARCH >> Version.xml
+          done
+          printf "  </supported_archs>\n" >> Version.xml
+          printf "</release>\n" >> Version.xml
+        done
+    - name: Generate ISO images
+      run: |
+        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
+          genisoimage -v -V "UEFI SHELL ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} ($BUILD_TYPE)" -JR -o "UEFI-Shell-${{ steps.set_version.outputs.shell_version }}-${{ steps.set_version.outputs.shell_release }}-$BUILD_TYPE.iso" $BUILD_TYPE
         done
     - name: Display SHA-256
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
           sha256sum $BUILD_TYPE/efi/boot/*.efi
-        done
-    - name: Generate ISO images
-      run: |
-        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
-          genisoimage -v -V "UEFI SHELL ${{ steps.set_version.outputs.shell_release }} ($BUILD_TYPE)" -JR -o "UEFI-Shell_${{ steps.set_version.outputs.shell_release }}_$BUILD_TYPE.iso" $BUILD_TYPE
         done
         sha256sum *.iso
     - name: Upload artifacts
@@ -106,7 +119,7 @@ jobs:
         printf "**UEFI Shell v%s, release %s**\n\n" ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} > body.txt
         printf "Built from [%s](https://github.com/tianocore/edk2/releases/tag/%s) and supporting:\n" ${{ steps.set_version.outputs.edk2_tag }} ${{ steps.set_version.outputs.edk2_tag }} >> body.txt
         for ARCH in ${{ env.ARCHS }}; do
-          printf "* `%s`\n" $ARCH >> body.txt
+          printf "* \`%s\`\n" $ARCH >> body.txt
         done
     - name: Create release
       uses: softprops/action-gh-release@v1
@@ -114,4 +127,6 @@ jobs:
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       with:
         body_path: ./body.txt
-        files: ./*.iso
+        files: |
+          ./*.iso
+          ./Version.xml
