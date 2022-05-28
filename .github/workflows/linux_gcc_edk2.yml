@@ -20,6 +20,7 @@ env:
   EDK2_SHELL_VERSION_HEADER: edk2/MdePkg/Include/Protocol/Shell.h
   # Was edk2/ShellPkg/Include/Protocol/EfiShell.h prior to 2016.10.18 
   # enum ShellVersion added on 2009.05.11
+  NASM_VERSION: 2.15.05
 
 jobs:
   build:
@@ -28,7 +29,7 @@ jobs:
     steps:
     - name: Install toolchains
       run: |
-        sudo apt install python3-distutils nasm uuid-dev gcc-9-multilib gcc-9-aarch64-linux-gnu gcc-9-arm-linux-gnueabi gcc-9-riscv64-linux-gnu genisoimage
+        sudo apt install python3-distutils uuid-dev gcc-9-multilib gcc-9-aarch64-linux-gnu gcc-9-arm-linux-gnueabi gcc-9-riscv64-linux-gnu genisoimage
         sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-9 /usr/bin/aarch64-linux-gnu-gcc
         sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-9 /usr/bin/aarch64-linux-gnu-gcc-ar
         sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-9 /usr/bin/arm-linux-gnueabi-gcc
@@ -36,6 +37,16 @@ jobs:
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-9 /usr/bin/riscv64-linux-gnu-gcc
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-9 /usr/bin/riscv64-linux-gnu-gcc-ar
         sudo ln -s /usr/riscv64-linux-gnu/include/gnu/stubs-lp64d.h /usr/riscv64-linux-gnu/include/gnu/stubs-lp64.h
+    - name: Install nasm ${{ env.NASM_VERSION }}
+      # https://edk2.groups.io/g/devel/topic/89637409#87359
+      run: |
+        curl -O https://www.nasm.us/pub/nasm/releasebuilds/${{ env.NASM_VERSION }}/nasm-${{ env.NASM_VERSION }}.tar.bz2
+        tar -xjf nasm-${{ env.NASM_VERSION }}.tar.bz2
+        cd nasm-${{ env.NASM_VERSION }}
+        ./autogen.sh
+        ./configure --prefix=/usr/local/ 
+        make 
+        sudo make install
     - name: Checkout repository and submodules
       uses: actions/checkout@v2
       with:
