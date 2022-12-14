@@ -29,13 +29,14 @@ jobs:
     steps:
     - name: Install toolchains
       run: |
-        sudo apt install python3-distutils uuid-dev gcc-9-multilib gcc-9-aarch64-linux-gnu gcc-9-arm-linux-gnueabi gcc-9-riscv64-linux-gnu genisoimage
-        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-9 /usr/bin/aarch64-linux-gnu-gcc
-        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-9 /usr/bin/aarch64-linux-gnu-gcc-ar
-        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-9 /usr/bin/arm-linux-gnueabi-gcc
-        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-ar-9 /usr/bin/arm-linux-gnueabi-gcc-ar
-        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-9 /usr/bin/riscv64-linux-gnu-gcc
-        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-9 /usr/bin/riscv64-linux-gnu-gcc-ar
+        sudo apt-get update
+        sudo apt-get install gcc-11-multilib gcc-11-aarch64-linux-gnu gcc-11-arm-linux-gnueabi gcc-11-riscv64-linux-gnu genisoimage
+        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-11 /usr/bin/aarch64-linux-gnu-gcc
+        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-11 /usr/bin/aarch64-linux-gnu-gcc-ar
+        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-11 /usr/bin/arm-linux-gnueabi-gcc
+        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-ar-11 /usr/bin/arm-linux-gnueabi-gcc-ar
+        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-11 /usr/bin/riscv64-linux-gnu-gcc
+        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-11 /usr/bin/riscv64-linux-gnu-gcc-ar
         sudo ln -s /usr/riscv64-linux-gnu/include/gnu/stubs-lp64d.h /usr/riscv64-linux-gnu/include/gnu/stubs-lp64.h
     - name: Install nasm ${{ env.NASM_VERSION }}
       # https://edk2.groups.io/g/devel/topic/89637409#87359
