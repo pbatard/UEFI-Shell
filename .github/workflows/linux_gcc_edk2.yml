@@ -58,10 +58,11 @@ jobs:
       run: |
         SHELL_MAJOR_VERSION=$(awk '/SHELL_MAJOR_VERSION/{sub("\r", "", $NF); sub(",", "", $NF); print $NF}' ${{ env.EDK2_SHELL_VERSION_HEADER }})
         SHELL_MINOR_VERSION=$(awk '/SHELL_MINOR_VERSION/{sub("\r", "", $NF); print $NF}' ${{ env.EDK2_SHELL_VERSION_HEADER }})
-        echo "::set-output name=shell_version::${SHELL_MAJOR_VERSION}.${SHELL_MINOR_VERSION}"
-        echo "::set-output name=shell_release::${GITHUB_REF/refs\/tags\//}"
-        echo "::set-output name=edk2_tag::$(git --git-dir edk2/.git describe --tags)"
-        echo "::set-output name=build_date::$(date '+%Y.%m.%d')"
+        # NB: The following only works if the shell is bash
+        echo "shell_version=${SHELL_MAJOR_VERSION}.${SHELL_MINOR_VERSION}" >> $GITHUB_OUTPUT
+        echo "shell_release=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        echo "edk2_tag=$(git --git-dir edk2/.git describe --tags)" >> $GITHUB_OUTPUT
+        echo "build_date=$(date '+%Y.%m.%d')" >> $GITHUB_OUTPUT
     - name: Set up EDK2
       run: make -C edk2/BaseTools
     - name: Build UEFI binaries
@@ -135,9 +136,8 @@ jobs:
         done
     - name: Create release
       uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         body_path: ./body.txt
         files: |
           ./*.iso
