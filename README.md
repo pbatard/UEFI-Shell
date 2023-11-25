@@ -3,7 +3,7 @@ UEFI-Shell
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/pbatard/UEFI-Shell/linux_gcc_edk2.yml?label=Build%20Status&style=flat-square)](https://github.com/pbatard/UEFI-Shell/actions/workflows/linux_gcc_edk2.yml)
 [![Github stats](https://img.shields.io/github/downloads/pbatard/UEFI-Shell/total.svg?label=Downloads&style=flat-square)](https://github.com/pbatard/UEFI-Shell/releases)
-[![Release](https://img.shields.io/badge/Latest%20Release-23H1%20(edk2--stable202305)-blue.svg?style=flat-square)](https://github.com/pbatard/UEFI-Shell/releases)
+[![Release](https://img.shields.io/badge/Latest%20Release-23H2%20(edk2--stable202311)-blue.svg?style=flat-square)](https://github.com/pbatard/UEFI-Shell/releases)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
 This repository contains pre-built UEFI Shell binary images, generated from
@@ -31,7 +31,7 @@ Microsoft does not allow an external UEFI Shell to be signed for Secure Boot.
 These binaries are built in a fully transparent manner, in order to provide
 you with complete assurance that they do not contain anything malicious.
 
-To validate that this claim, you can perform the following:
+To validate this claim, you can perform the following:
 
 1. Locate the build action for the ISO you downloaded under
    https://github.com/pbatard/UEFI-Shell/actions. For instance, for the 21H1

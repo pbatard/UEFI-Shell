@@ -20,7 +20,6 @@ env:
   EDK2_SHELL_VERSION_HEADER: edk2/MdePkg/Include/Protocol/Shell.h
   # Was edk2/ShellPkg/Include/Protocol/EfiShell.h prior to 2016.10.18 
   # enum ShellVersion added on 2009.05.11
-  NASM_VERSION: 2.15.05
 
 jobs:
   build:
@@ -30,29 +29,20 @@ jobs:
     - name: Install toolchains
       run: |
         sudo apt-get update
-        sudo apt-get install gcc-11-multilib gcc-11-aarch64-linux-gnu gcc-11-arm-linux-gnueabi gcc-11-riscv64-linux-gnu genisoimage
-        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-11 /usr/bin/aarch64-linux-gnu-gcc
-        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-11 /usr/bin/aarch64-linux-gnu-gcc-ar
-        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-11 /usr/bin/arm-linux-gnueabi-gcc
-        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-ar-11 /usr/bin/arm-linux-gnueabi-gcc-ar
-        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-11 /usr/bin/riscv64-linux-gnu-gcc
-        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-11 /usr/bin/riscv64-linux-gnu-gcc-ar
-        sudo ln -s /usr/riscv64-linux-gnu/include/gnu/stubs-lp64d.h /usr/riscv64-linux-gnu/include/gnu/stubs-lp64.h
-    - name: Install nasm ${{ env.NASM_VERSION }}
-      # https://edk2.groups.io/g/devel/topic/89637409#87359
-      run: |
-        curl -O https://www.nasm.us/pub/nasm/releasebuilds/${{ env.NASM_VERSION }}/nasm-${{ env.NASM_VERSION }}.tar.bz2
-        tar -xjf nasm-${{ env.NASM_VERSION }}.tar.bz2
-        cd nasm-${{ env.NASM_VERSION }}
-        ./autogen.sh
-        ./configure --prefix=/usr/local/ 
-        make 
-        sudo make install
+        sudo apt-get -y --no-install-recommends install gcc-12-multilib gcc-12-aarch64-linux-gnu gcc-12-arm-linux-gnueabi gcc-12-riscv64-linux-gnu nasm genisoimage
+        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-12 /usr/bin/aarch64-linux-gnu-gcc
+        sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-12 /usr/bin/aarch64-linux-gnu-gcc-ar
+        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-12 /usr/bin/arm-linux-gnueabi-gcc
+        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-ar-12 /usr/bin/arm-linux-gnueabi-gcc-ar
+        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-12 /usr/bin/riscv64-linux-gnu-gcc
+        sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-12 /usr/bin/riscv64-linux-gnu-gcc-ar
+
     - name: Checkout repository and submodules
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
         submodules: recursive
+
     - name: Set version
       id: set_version
       run: |
@@ -63,8 +53,10 @@ jobs:
         echo "shell_release=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
         echo "edk2_tag=$(git --git-dir edk2/.git describe --tags)" >> $GITHUB_OUTPUT
         echo "build_date=$(date '+%Y.%m.%d')" >> $GITHUB_OUTPUT
+
     - name: Set up EDK2
       run: make -C edk2/BaseTools
+
     - name: Build UEFI binaries
       run: |
         cd edk2
@@ -74,6 +66,7 @@ jobs:
             build -a $ARCH -b $BUILD_TYPE -t ${{ env.COMPILER }} -p ShellPkg/ShellPkg.dsc --pcd gEfiShellPkgTokenSpaceGuid.PcdShellScreenLogCount=8 --pcd gEfiShellPkgTokenSpaceGuid.PcdShellSupplier=L"${{ steps.set_version.outputs.edk2_tag }} (https://github.com/pbatard/UEFI-Shell)"
           done
         done
+
     - name: Create ISO filesystem structure
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
@@ -111,22 +104,26 @@ jobs:
           printf "  </supported_archs>\n" >> Version.xml
           printf "</release>\n" >> Version.xml
         done
+
     - name: Generate ISO images
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
           genisoimage -v -V "UEFI SHELL ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} ($BUILD_TYPE)" -JR -o "UEFI-Shell-${{ steps.set_version.outputs.shell_version }}-${{ steps.set_version.outputs.shell_release }}-$BUILD_TYPE.iso" $BUILD_TYPE
         done
+
     - name: Display SHA-256
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
           sha256sum $BUILD_TYPE/efi/boot/*.efi
         done
         sha256sum *.iso
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
         name: ISOs
         path: ./*.iso
+
     - name: Create release blurb
       run: |
         printf "**UEFI Shell v%s, release %s**\n\n" ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} > body.txt
@@ -134,6 +131,7 @@ jobs:
         for ARCH in ${{ env.ARCHS }}; do
           printf "* \`%s\`\n" $ARCH >> body.txt
         done
+
     - name: Create release
       uses: softprops/action-gh-release@v1
       with:
