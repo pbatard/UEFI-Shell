@@ -37,9 +37,13 @@ jobs:
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-12 /usr/bin/riscv64-linux-gnu-gcc
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-12 /usr/bin/riscv64-linux-gnu-gcc-ar
 
+    - name: Fix the BROKEN cmocka.git EDK2 dependency
+      run: git config --global url."https://github.com/tianocore/edk2-cmocka.git".insteadOf "https://git.cryptomilk.org/projects/cmocka.git"
+
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
       with:
+        # Need fetch-depth: 0 to obtain the EDK2 stable tag
         fetch-depth: 0
         submodules: recursive
 
@@ -66,6 +70,15 @@ jobs:
             build -a $ARCH -b $BUILD_TYPE -t ${{ env.COMPILER }} -p ShellPkg/ShellPkg.dsc --pcd gEfiShellPkgTokenSpaceGuid.PcdShellScreenLogCount=8 --pcd gEfiShellPkgTokenSpaceGuid.PcdShellSupplier=L"${{ steps.set_version.outputs.edk2_tag }} (https://github.com/pbatard/UEFI-Shell)"
           done
         done
+
+    - name: Create individual Shell binaries
+      run: |
+        for ARCH in ${{ env.ARCHS }}; do
+          cp edk2/Build/Shell/RELEASE_${{ env.COMPILER }}/$ARCH/Shell_${{ env.FULL_SHELL_GUID }}.efi ./shell${ARCH,,}.efi
+        done
+        if [ -f ./shellaarch64.efi ]; then
+          mv ./shellaarch64.efi ./shellaa64.efi
+        fi
 
     - name: Create ISO filesystem structure
       run: |
@@ -117,9 +130,10 @@ jobs:
           sha256sum $BUILD_TYPE/efi/boot/*.efi
         done
         sha256sum *.iso
+        sha256sum *.efi
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+    - name: Upload ISO artifacts
+      uses: actions/upload-artifact@v4
       with:
         name: ISOs
         path: ./*.iso
@@ -139,4 +153,5 @@ jobs:
         body_path: ./body.txt
         files: |
           ./*.iso
+          ./*.efi
           ./Version.xml
