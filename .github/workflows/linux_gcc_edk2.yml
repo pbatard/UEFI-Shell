@@ -37,9 +37,6 @@ jobs:
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-12 /usr/bin/riscv64-linux-gnu-gcc
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-12 /usr/bin/riscv64-linux-gnu-gcc-ar
 
-    - name: Fix the BROKEN cmocka.git EDK2 dependency
-      run: git config --global url."https://github.com/tianocore/edk2-cmocka.git".insteadOf "https://git.cryptomilk.org/projects/cmocka.git"
-
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
       with:
@@ -80,6 +77,22 @@ jobs:
           mv ./shellaarch64.efi ./shellaa64.efi
         fi
 
+    - name: Download the latest Mosby release
+      uses: robinraju/release-downloader@v1
+      with:
+        repository: pbatard/Mosby
+        latest: true
+        fileName: Mosby*.zip
+
+    - name: Extract the Mosby content
+      run: |
+        for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
+          mkdir $BUILD_TYPE
+          7z x Mosby*.zip -o$BUILD_TYPE
+          mv $BUILD_TYPE/README.md $BUILD_TYPE/Mosby.txt
+          sed -i '1,5d' $BUILD_TYPE/Mosby.txt
+        done
+
     - name: Create ISO filesystem structure
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
@@ -100,6 +113,9 @@ jobs:
           for ARCH in ${{ env.ARCHS }}; do
             printf "* %s\n" $ARCH >> $BUILD_TYPE/README.txt
           done
+          printf "\nReleases of UEFI Shell now also include Mosby (https://github.com/pbatard/Mosby)\n" >> $BUILD_TYPE/README.txt
+          printf "to help you update your Secure Boot variables as well as generate and install\n" >> $BUILD_TYPE/README.txt
+          printf "your own Secure Boot signing key. Just type 'Mosby' to run it.\n" >> $BUILD_TYPE/README.txt
           printf "\nFor more information on how this release was produced, you are invited to\n" >> $BUILD_TYPE/README.txt
           printf "visit our official project page at https://github.com/pbatard/UEFI-Shell,\n" >> $BUILD_TYPE/README.txt
           printf "where you can also validate that all of the binaries contained in this image\n" >> $BUILD_TYPE/README.txt
@@ -145,9 +161,14 @@ jobs:
         for ARCH in ${{ env.ARCHS }}; do
           printf "* \`%s\`\n" $ARCH >> body.txt
         done
+        printf "\nsha256sums:\n" >> body.txt
+        printf "\`\`\`\n" >> body.txt
+        sha256sum ./*.efi >> body.txt
+        sha256sum ./*.iso >> body.txt
+        printf "\`\`\`\n" >> body.txt
 
     - name: Create release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         body_path: ./body.txt
