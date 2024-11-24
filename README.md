@@ -3,7 +3,7 @@ UEFI-Shell
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/pbatard/UEFI-Shell/linux_gcc_edk2.yml?label=Build%20Status&style=flat-square)](https://github.com/pbatard/UEFI-Shell/actions/workflows/linux_gcc_edk2.yml)
 [![Github stats](https://img.shields.io/github/downloads/pbatard/UEFI-Shell/total.svg?label=Downloads&style=flat-square)](https://github.com/pbatard/UEFI-Shell/releases)
-[![Release](https://img.shields.io/badge/Latest%20Release-24H1%20(edk2--stable202405)-blue.svg?style=flat-square)](https://github.com/pbatard/UEFI-Shell/releases)
+[![Release](https://img.shields.io/badge/Latest%20Release-24H2%20(edk2--stable202411)-blue.svg?style=flat-square)](https://github.com/pbatard/UEFI-Shell/releases)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
 This repository contains pre-built UEFI Shell binary images, generated from
@@ -11,8 +11,8 @@ official [EDK2](https://github.com/tianocore/edk2) stable releases.
 
 ## Usage
 
-These images are provided in the form of a bootable ISO, in order to make them
-easy to use with boot media creators such as [Rufus](https://rufus.ie).
+These images are mostly provided in the form of a bootable ISO, in order to
+make them easy to use with boot media creators such as [Rufus](https://rufus.ie).
 
 However, these can also readily used by:
 - Partitioning and formatting a media, such as a USB Flash drive, using a FAT
@@ -23,8 +23,27 @@ Once you have done that, and provided that your machine is set to boot from
 removable media (and runs a UEFI firmware that uses one of the architectures
 supported by the release), it should automatically boot into the UEFI Shell.
 
+Alternatively, you can download the individual UEFI Shell binary for your
+platform.
+
 Note that Secure Boot must be disabled for a UEFI Shell media to boot, as
 Microsoft does not allow an external UEFI Shell to be signed for Secure Boot.
+
+## Inclusion of Mosby
+
+Starting with release 24H2, these ISO images also include [Mosby](https://github.com/pbatard/Mosby)
+**as an optional binary** that you can run by typing `Mosby` from the Shell
+command prompt.
+
+This is done because we believe that, with the planned expiration of current
+Secure Boot DB signing certificates for Microsoft Windows and UEFI Third Party
+**that will occur in 2026**, as well as the whole *BlackLotus* revocation mess,
+more and more people are going to be looking for a convenient way to update
+their UEFI Secure Boot databases, and Mosby is designed to accomplish just that.
+
+But again, it needs to be reiterated that the inclusion of Mosby does not
+change anything to the base UEFI Shell. It's just an extra command you can
+invoke, *should you decide to do so*.
 
 ## Binary validation
 
