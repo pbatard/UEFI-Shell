@@ -10,9 +10,10 @@ env:
   GCC5_ARM_PREFIX: arm-linux-gnueabi-
   GCC5_AARCH64_PREFIX: aarch64-linux-gnu-
   GCC5_RISCV64_PREFIX: riscv64-linux-gnu-
+  GCC5_LOONGARCH64_PREFIX: loongarch64-unknown-linux-gnu-
   FULL_SHELL_GUID: EA4BB293-2D7F-4456-A681-1F22F42CD0BC
   BUILD_TYPES: DEBUG RELEASE
-  ARCHS: X64 IA32 AARCH64 ARM RISCV64
+  ARCHS: X64 IA32 AARCH64 ARM RISCV64 LOONGARCH64
   # Shell versions:
   #  2.2 added on 2017.03.31
   #  2.1 added on 2014.08.05
@@ -26,6 +27,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout repository and submodules
+      # Must happen first, else the LoongArch toolchain gets deleted (even with clean: false)
+      uses: actions/checkout@v4
+      with:
+        # Need fetch-depth: 0 to obtain the EDK2 stable tag
+        fetch-depth: 0
+        submodules: recursive
+
     - name: Install toolchains
       run: |
         sudo apt-get update
@@ -36,13 +45,9 @@ jobs:
         sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-ar-12 /usr/bin/arm-linux-gnueabi-gcc-ar
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-12 /usr/bin/riscv64-linux-gnu-gcc
         sudo ln -s /usr/bin/riscv64-linux-gnu-gcc-ar-12 /usr/bin/riscv64-linux-gnu-gcc-ar
-
-    - name: Checkout repository and submodules
-      uses: actions/checkout@v4
-      with:
-        # Need fetch-depth: 0 to obtain the EDK2 stable tag
-        fetch-depth: 0
-        submodules: recursive
+        curl -L -O https://github.com/loongson/build-tools/releases/download/2024.11.01/x86_64-cross-tools-loongarch64-binutils_2.43.1-gcc_14.2.0-glibc_2.40.tar.xz
+        tar -xJf x86_64-cross-tools-loongarch64-binutils_2.43.1-gcc_14.2.0-glibc_2.40.tar.xz
+        echo "$PWD/cross-tools/bin" >> "$GITHUB_PATH"
 
     - name: Set version
       id: set_version
