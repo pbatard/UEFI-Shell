@@ -38,7 +38,7 @@ jobs:
     - name: Install toolchains
       run: |
         sudo apt-get update
-        sudo apt-get -y --no-install-recommends install gcc-12-multilib gcc-12-aarch64-linux-gnu gcc-12-arm-linux-gnueabi gcc-12-riscv64-linux-gnu nasm genisoimage
+        sudo apt-get -y --no-install-recommends install gcc-12-multilib gcc-12-aarch64-linux-gnu gcc-12-arm-linux-gnueabi gcc-12-riscv64-linux-gnu nasm genisoimage uuid-dev
         sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-12 /usr/bin/aarch64-linux-gnu-gcc
         sudo ln -s /usr/bin/aarch64-linux-gnu-gcc-ar-12 /usr/bin/aarch64-linux-gnu-gcc-ar
         sudo ln -s /usr/bin/arm-linux-gnueabi-gcc-12 /usr/bin/arm-linux-gnueabi-gcc
