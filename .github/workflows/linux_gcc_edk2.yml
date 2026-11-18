@@ -146,17 +146,16 @@ jobs:
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
           # genisoimage requires the El-Torito images to be within the source directory folder even though they
           # are completely independent of the ISO-9660 CD-ROM volumes (and not part of the visible file system),
-          # so we place them into a '[BOOT]/' subfolder that follows 7-zip's virtual image presentation logic.
-          mkdir "$BUILD_TYPE/[BOOT]"
-          dd if=/dev/zero of="$BUILD_TYPE/[BOOT]/Boot-NoEmul.img" bs=1M count=8
-          mkdosfs "$BUILD_TYPE/[BOOT]/Boot-NoEmul.img" -n "UEFI SHELL"
-          mcopy -s -i "$BUILD_TYPE/[BOOT]/Boot-NoEmul.img" $BUILD_TYPE/EFI/ ::
+          # so we place them at the root of the file system and then use the '-hide' options to hide them.
+          dd if=/dev/zero of="$BUILD_TYPE/Boot-NoEmul.img" bs=1M count=8
+          mkdosfs "$BUILD_TYPE/Boot-NoEmul.img" -n "UEFI SHELL"
+          mcopy -s -i "$BUILD_TYPE/Boot-NoEmul.img" $BUILD_TYPE/EFI/ ::
         done
 
     - name: Generate ISO images
       run: |
         for BUILD_TYPE in ${{ env.BUILD_TYPES }}; do
-          genisoimage -V "UEFI SHELL ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} ($BUILD_TYPE)" -e "[BOOT]/Boot-NoEmul.img" -no-emul-boot -JR -o "UEFI-Shell-${{ steps.set_version.outputs.shell_version }}-${{ steps.set_version.outputs.shell_release }}-$BUILD_TYPE.iso" $BUILD_TYPE
+          genisoimage -V "UEFI SHELL ${{ steps.set_version.outputs.shell_version }} ${{ steps.set_version.outputs.shell_release }} ($BUILD_TYPE)" -e Boot-NoEmul.img -no-emul-boot -hide Boot-NoEmul.img -hide-joliet Boot-NoEmul.img -JR -o "UEFI-Shell-${{ steps.set_version.outputs.shell_version }}-${{ steps.set_version.outputs.shell_release }}-$BUILD_TYPE.iso" $BUILD_TYPE
         done
 
     - name: Display SHA-256
